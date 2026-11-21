@@ -16,15 +16,15 @@ Status: fixed 2026-11-21 (issue #114).
 
 ## Fix
 
-- The CA's `openssl req -x509` now adds
+- `make_tls()` now creates the CA certificate with
   `basicConstraints=critical,CA:TRUE`,
   `keyUsage=critical,keyCertSign,cRLSign` and `subjectKeyIdentifier=hash`.
-- The server certificate is unchanged. OpenSSL 3 adds the key identifiers
-  to it.
+- The server certificate is unchanged. OpenSSL 3 adds the subject and
+  authority key identifiers to it itself.
 
 ## Evidence
 
-- `tests/test_ci_stack_tls.py` cuts `make_tls()` from the script, runs it
+- `tests/test_ci_stack_tls.py` extracts `make_tls()` from the script, runs it
   for an IP host and a DNS host, and handshakes with a local TLS server
   using `ssl.create_default_context(cafile=ca.pem)` with
   `VERIFY_X509_STRICT` set explicitly, so it checks on any Python version.
