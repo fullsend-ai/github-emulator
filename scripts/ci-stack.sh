@@ -19,7 +19,7 @@
 #   CI_STACK_RUNNER_LABELS  labels the runner serves (default
 #                   self-hosted,linux,ubuntu-latest,ubuntu-<VERSION_ID> on an
 #                   Ubuntu host, from /etc/os-release, e.g. ubuntu-26.04 on
-#                   26.04; ubuntu-24.04 in its place on any other OS)
+#                   26.04; on any other OS the last label is ubuntu-24.04)
 #   CI_STACK_HOST   host name the emulator puts in its URLs (default
 #                   127.0.0.1). A sandbox that cannot reach loopback needs a
 #                   name that resolves to this machine, e.g. <ip>.nip.io.

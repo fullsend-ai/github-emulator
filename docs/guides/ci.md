@@ -14,8 +14,8 @@ starts and stops the stack, and
 [`scripts/ci-workflow-smoke.sh`](../../scripts/ci-workflow-smoke.sh) checks
 that it executes a real workflow run.
 [`.github/workflows/self-contained-smoke.yml`](../../.github/workflows/self-contained-smoke.yml)
-runs both on every pull request, on `ubuntu-24.04` and on `ubuntu-26.04`, and
-builds both runner images on both releases. From a workflow in another repository, run
+runs both on every pull request, on `ubuntu-24.04` and `ubuntu-26.04`, and builds
+each runner image on both releases. From a workflow in another repository, run
 these scripts from a checkout of this repository, as below, or call the
 composite action
 [`.github/actions/emulator`](../../.github/actions/emulator/action.yml), which
@@ -112,7 +112,7 @@ All settings are optional environment variables for `scripts/ci-stack.sh`.
 | `CI_STACK_PYTHON` | `python3` | Python with the locked dependencies installed. |
 | `CI_STACK_RUNNERS` | `1` | Runner processes, that is, jobs that run at once. |
 | `CI_STACK_RUNNER_KIND` | `python` | `python` or `upstream` (the real `actions/runner`, Linux x64). |
-| `CI_STACK_RUNNER_LABELS` | `self-hosted,linux,ubuntu-latest,ubuntu-<VERSION_ID>` on an Ubuntu host, for example `ubuntu-26.04` on 26.04; `ubuntu-24.04` in its place on any other OS | Labels the runners serve. The default reads `ID` and `VERSION_ID` from `/etc/os-release`. |
+| `CI_STACK_RUNNER_LABELS` | `self-hosted,linux,ubuntu-latest,ubuntu-<VERSION_ID>` on an Ubuntu host, for example `ubuntu-26.04` on 26.04. On any other OS the last label is `ubuntu-24.04` | Labels the runners serve. The default reads `ID` and `VERSION_ID` from `/etc/os-release`. |
 | `CI_STACK_RUNNER_ENV` | | Extra environment for every runner and its jobs: `NAME=VALUE` lines, one per line. |
 | `CI_STACK_HOST` | `127.0.0.1` | Host name the emulator puts in its URLs. |
 | `CI_STACK_BIND` | `127.0.0.1` (`0.0.0.0` with `CI_STACK_LOCALHOST_DNS=1`) | Address the API listens on. Use `0.0.0.0` with a non-loopback `CI_STACK_HOST`. |
