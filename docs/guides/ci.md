@@ -14,7 +14,8 @@ starts and stops the stack, and
 [`scripts/ci-workflow-smoke.sh`](../../scripts/ci-workflow-smoke.sh) checks
 that it executes a real workflow run.
 [`.github/workflows/self-contained-smoke.yml`](../../.github/workflows/self-contained-smoke.yml)
-runs both on every pull request. From a workflow in another repository, run
+runs both on every pull request, on `ubuntu-24.04` and on `ubuntu-26.04`, and
+builds both runner images on both releases. From a workflow in another repository, run
 these scripts from a checkout of this repository, as below, or call the
 composite action
 [`.github/actions/emulator`](../../.github/actions/emulator/action.yml), which

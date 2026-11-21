@@ -1,0 +1,5 @@
+# actionlint lists GitHub-hosted runner labels from its own release; labels
+# GitHub added after that release go here.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
