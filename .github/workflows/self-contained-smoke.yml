@@ -14,7 +14,14 @@ permissions:
 
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    # Both Ubuntu LTS releases GitHub hosts: the runner must serve the
+    # host's own release label on each.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    name: smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,6 +49,22 @@ jobs:
           start=$(date +%s.%N)
           scripts/ci-stack.sh start
           echo "seconds=$(echo "$(date +%s.%N) - $start" | bc)" >> "$GITHUB_OUTPUT"
+
+      - name: Check the runner serves this host's release label
+        env:
+          CI_STACK_DIR: /tmp/ci-stack
+          WANT: ${{ matrix.os }}
+        run: |
+          labels=$(tr '\0' '\n' <"/proc/$(cat "$CI_STACK_DIR/runner-1.pid")/environ" | sed -n 's/^RUNNER_LABELS=//p')
+          echo "runner labels: $labels"
+          case ",$labels," in
+            *",$WANT,"*) ;;
+            *) echo "::error::runner does not serve $WANT"; exit 1 ;;
+          esac
+          case ",$labels," in
+            *",ubuntu-latest,"*) ;;
+            *) echo "::error::runner does not serve ubuntu-latest"; exit 1 ;;
+          esac
 
       - name: Run a workflow on the emulator
         id: smoke
@@ -81,6 +104,39 @@ jobs:
         env:
           CI_STACK_DIR: /tmp/ci-stack
         run: scripts/ci-stack.sh stop
+
+  # The two runner images, on both Ubuntu LTS releases GitHub hosts. Build
+  # and check only; nothing is published.
+  runner-images:
+    name: runner image (${{ matrix.image }}, ${{ matrix.ubuntu }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [emulator, upstream]
+        ubuntu: ["24.04", "26.04"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        env:
+          IMAGE: ${{ matrix.image }}
+          UBUNTU: ${{ matrix.ubuntu }}
+        run: docker build --build-arg UBUNTU_VERSION="$UBUNTU" -t "runner-check:$IMAGE-$UBUNTU" "src/runners/$IMAGE"
+      - name: Check the base release and ICU
+        env:
+          IMAGE: ${{ matrix.image }}
+          UBUNTU: ${{ matrix.ubuntu }}
+        run: |
+          got=$(docker run --rm --entrypoint /bin/sh "runner-check:$IMAGE-$UBUNTU" -c '. /etc/os-release; echo "$VERSION_ID"')
+          [ "$got" = "$UBUNTU" ] || { echo "::error::built on Ubuntu $got, not $UBUNTU"; exit 1; }
+          icu=$(docker run --rm --entrypoint /bin/sh "runner-check:$IMAGE-$UBUNTU" -c "dpkg-query -W -f='\${Package}\n' 'libicu[0-9]*' 2>/dev/null | grep -E '^libicu[0-9]+$' || true")
+          echo "Ubuntu $got, ICU: ${icu:-none}"
+          if [ "$IMAGE" = upstream ] && [ -z "$icu" ]; then
+            echo "::error::the upstream runner image has no ICU package"; exit 1
+          fi
 
   # The packaging a consumer would use: the composite action, then the smoke
   # against its outputs. Step timings in the run show its start-up cost.
