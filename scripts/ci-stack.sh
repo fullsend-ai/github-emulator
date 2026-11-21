@@ -223,6 +223,18 @@ make_tls() {
   fi
 }
 
+# dnsmasq from apt when it is missing. A VM whose package lists are missing
+# or stale cannot find dnsmasq-base, so a failed install updates the lists
+# and tries once more; an install that works first time updates nothing.
+# The retry's errors reach the log.
+install_dnsmasq() {
+  command -v dnsmasq >/dev/null && return 0
+  sudo apt-get -qq install -y dnsmasq-base >/dev/null 2>&1 && return 0
+  echo "dnsmasq-base install failed; updating package lists and retrying" >&2
+  sudo apt-get -qq update || true
+  sudo apt-get -qq install -y dnsmasq-base >/dev/null
+}
+
 # Resolve HOST (*.localhost) to this machine's own address for every client;
 # see CI_STACK_LOCALHOST_DNS above. Idempotent.
 localhost_dns() {
@@ -259,7 +271,7 @@ localhost_dns() {
     cp -L /etc/resolv.conf "$DIR/resolv.conf.orig"
   fi
   upstream="$(awk '$1 == "nameserver" { print $2; exit }' "$DIR/resolv.conf.orig")"
-  command -v dnsmasq >/dev/null || sudo apt-get -qq install -y dnsmasq-base >/dev/null
+  install_dnsmasq
   sudo ip addr add 127.0.0.2/8 dev lo 2>/dev/null || true
   if [ -f "$DIR/dnsmasq.pid" ] && sudo kill -0 "$(cat "$DIR/dnsmasq.pid")" 2>/dev/null; then
     sudo kill "$(cat "$DIR/dnsmasq.pid")"
