@@ -19,8 +19,8 @@ Status: fixed 2026-11-21 (issue #114).
 - `make_tls()` now creates the CA certificate with
   `basicConstraints=critical,CA:TRUE`,
   `keyUsage=critical,keyCertSign,cRLSign` and `subjectKeyIdentifier=hash`.
-- The server certificate is unchanged. OpenSSL 3 adds the subject and
-  authority key identifiers to it itself.
+- The server certificate is unchanged: OpenSSL 3 adds its subject and
+  authority key identifiers automatically.
 
 ## Evidence
 
