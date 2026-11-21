@@ -25,6 +25,9 @@
 #                   name that resolves to this machine, e.g. <ip>.nip.io.
 #   CI_STACK_BIND   address uvicorn listens on (default 127.0.0.1; use
 #                   0.0.0.0 with a non-loopback CI_STACK_HOST)
+#   CI_STACK_START_TIMEOUT  seconds `start` waits for the emulator to answer
+#                   (default 120). It stops waiting sooner if the emulator
+#                   process exits.
 #   CI_STACK_RUNNERS  runner processes, i.e. jobs that run at once (default 1)
 #   CI_STACK_RUNNER_KIND  python (src/runners/emulator/runner.py, default) or
 #                   upstream (the real actions/runner, Linux x64)
@@ -126,6 +129,11 @@ if [ "$LOCALHOST_DNS" = 1 ]; then
 else
   BIND="${CI_STACK_BIND:-127.0.0.1}"
 fi
+START_TIMEOUT="${CI_STACK_START_TIMEOUT:-120}"
+if ! [[ "$START_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "CI_STACK_START_TIMEOUT must be a whole number of seconds above 0, got '$START_TIMEOUT'" >&2
+  exit 2
+fi
 RUNNERS="${CI_STACK_RUNNERS:-1}"
 KIND="${CI_STACK_RUNNER_KIND:-python}"
 UPSTREAM_VERSION="${CI_STACK_UPSTREAM_RUNNER_VERSION:-2.338.2}"
@@ -191,6 +199,17 @@ stop_after_failed_start() {
   if [ "$status" != 0 ]; then
     echo "start failed; stopping what it launched" >&2
     stop
+  fi
+}
+
+# Milliseconds since the epoch: EPOCHREALTIME (bash 5; its decimal mark
+# follows the locale), else whole seconds from date.
+now_ms() {
+  if [ -n "${EPOCHREALTIME:-}" ]; then
+    local t="${EPOCHREALTIME//[^0-9]/}"
+    echo $((10#$t / 1000))
+  else
+    echo $(($(date +%s) * 1000))
   fi
 }
 
@@ -384,18 +403,31 @@ start() {
   echo $! >"$DIR/emulator.pid"
 
   # Ready when this emulator answers: it must still be alive, so a server
-  # that failed to bind cannot pass on another one's answer.
-  local ready=0
-  for _ in $(seq 1 60); do
+  # that failed to bind cannot pass on another one's answer. Wait until a
+  # deadline, not for a number of attempts: while uvicorn is still starting,
+  # curl is refused at once, so the attempts measured little but the sleeps.
+  local ready=0 started waited
+  started="$(now_ms)"
+  while :; do
     if ! live_pid "$DIR/emulator.pid"; then break; fi
     if curl -sf -m 2 ${curl_ca[@]+"${curl_ca[@]}"} "$LOCAL/api/v3" >/dev/null; then ready=1; break; fi
+    if [ $(($(now_ms) - started)) -ge $((START_TIMEOUT * 1000)) ]; then break; fi
     sleep 0.5
   done
+  waited=$(($(now_ms) - started))
+  # A clock stepped back must not print a negative time.
+  if [ "$waited" -lt 0 ]; then waited=0; fi
+  waited="$((waited / 1000)).$((waited % 1000 / 100))"
   if [ "$ready" != 1 ] || ! live_pid "$DIR/emulator.pid"; then
-    echo "the emulator did not start; last lines of $DIR/emulator.log:" >&2
+    if live_pid "$DIR/emulator.pid"; then
+      echo "the emulator did not start: no answer after ${waited}s (CI_STACK_START_TIMEOUT=$START_TIMEOUT); last lines of $DIR/emulator.log:" >&2
+    else
+      echo "the emulator did not start: it exited after ${waited}s; last lines of $DIR/emulator.log:" >&2
+    fi
     tail -50 "$DIR/emulator.log" >&2
     exit 1
   fi
+  echo "emulator ready after ${waited}s"
 
   # One runner executes one job at a time, so job concurrency is the number
   # of runner processes. Each gets its own work directory.

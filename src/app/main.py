@@ -7,12 +7,17 @@ Git Smart HTTP protocol handler.
 
 import logging
 import os
-from contextlib import asynccontextmanager
+import time
+from contextlib import asynccontextmanager, contextmanager
 
-from fastapi import FastAPI
+# Before the heavy imports below: on a busy CI VM, importing the app (FastAPI,
+# the models, every router, the GraphQL schema) took most of a slow start.
+_IMPORT_STARTED = time.monotonic()
 
-from app.config import settings
-from app.database import async_session, get_db, init_db
+from fastapi import FastAPI  # noqa: E402
+
+from app.config import settings  # noqa: E402
+from app.database import async_session, get_db, init_db  # noqa: E402
 
 logger = logging.getLogger("github_emulator")
 # Nothing else gives the app's own loggers a handler, so their INFO lines
@@ -35,15 +40,30 @@ def _log_level(name: str) -> int:
 logger.setLevel(_log_level(os.environ.get("GITHUB_EMULATOR_LOG_LEVEL", "INFO")))
 
 
+@contextmanager
+def _startup_phase(name: str):
+    """Log a timestamped line before and after one startup phase.
+
+    A slow start then shows which phase took the time (#107).
+    """
+    logger.info("Startup: %s...", name)
+    started = time.monotonic()
+    yield
+    logger.info("Startup: %s done in %.2fs", name, time.monotonic() - started)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialise the database on startup."""
+    logger.info("Startup: app import done in %.2fs", _IMPORT_SECONDS)
     os.makedirs(settings.DATA_DIR, exist_ok=True)
     os.makedirs(os.path.join(settings.DATA_DIR, "repos"), exist_ok=True)
 
-    await init_db()
+    with _startup_phase("database init (migrations)"):
+        await init_db()
     if settings.SEED_DATA:
-        await _ensure_admin_user()
+        with _startup_phase("admin user seed"):
+            await _ensure_admin_user()
 
     logger.info("GitHub Emulator started at %s", settings.BASE_URL)
     memory_watch = None
@@ -56,7 +76,8 @@ async def lifespan(app: FastAPI):
     ssh_server = None
     try:
         from app.git.ssh_server import start_ssh_server
-        ssh_server = await start_ssh_server()
+        with _startup_phase("SSH server"):
+            ssh_server = await start_ssh_server()
     except Exception:
         logger.warning("SSH server failed to start")
 
@@ -370,3 +391,5 @@ def create_app() -> FastAPI:
 
 # Application instance for uvicorn
 app = create_app()
+# Import plus app construction, logged when startup begins.
+_IMPORT_SECONDS = time.monotonic() - _IMPORT_STARTED

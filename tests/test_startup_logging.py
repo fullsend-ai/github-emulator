@@ -72,3 +72,33 @@ def test_the_alembic_command_line_keeps_existing_loggers(tmp_path):
     finally:
         root_logger.setLevel(saved[0])
         root_logger.handlers[:] = saved[1]
+
+
+@pytest.mark.asyncio
+async def test_startup_logs_how_long_each_phase_took(tmp_path, monkeypatch, caplog):
+    # A slow start shows which phase took the time (#107).
+    from app import main as app_main
+    from app.git import ssh_server
+
+    async def nothing():
+        return None
+
+    monkeypatch.setattr(app_main.settings, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(app_main.settings, "SEED_DATA", True)
+    monkeypatch.setattr(app_main.settings, "MEMORY_WATCH", False)
+    monkeypatch.setattr(app_main, "init_db", nothing)
+    monkeypatch.setattr(app_main, "_ensure_admin_user", nothing)
+    monkeypatch.setattr(ssh_server, "start_ssh_server", nothing)
+
+    with caplog.at_level(logging.INFO, logger="github_emulator"):
+        async with app_main.lifespan(None):
+            pass
+
+    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Startup: ")]
+    phases = ["database init (migrations)", "admin user seed", "SSH server"]
+    expected = ["Startup: app import done in"]
+    for phase in phases:
+        expected += [f"Startup: {phase}...", f"Startup: {phase} done in"]
+    assert len(lines) == len(expected), lines
+    for line, start in zip(lines, expected, strict=True):
+        assert line.startswith(start), lines

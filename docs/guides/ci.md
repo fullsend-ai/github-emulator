@@ -42,11 +42,12 @@ Run these from a checkout of this repository.
    ```
 
 2. Start the emulator and one Python runner. The script returns once the API
-   answers:
+   answers, and gives up after `CI_STACK_START_TIMEOUT` seconds (default 120):
 
    ```console
    $ export CI_STACK_PYTHON=/tmp/emu-venv/bin/python CI_STACK_DIR=/tmp/ci-stack
    $ scripts/ci-stack.sh start
+   emulator ready after 3.1s
    emulator http://127.0.0.1:8000 (pid 995), 1 python runner(s)
    admin token in /tmp/ci-stack/admin-token
    ```
@@ -110,6 +111,7 @@ All settings are optional environment variables for `scripts/ci-stack.sh`.
 | `CI_STACK_DIR` | `.ci-stack` in the checkout | State directory: SQLite file, git repositories, logs, pid files, `admin-token` and `admin-password`. |
 | `CI_STACK_PORT` | `8000` | API port. |
 | `CI_STACK_PYTHON` | `python3` | Python with the locked dependencies installed. |
+| `CI_STACK_START_TIMEOUT` | `120` | Seconds `start` waits for the emulator to answer. It stops waiting sooner if the emulator process exits. |
 | `CI_STACK_RUNNERS` | `1` | Runner processes, that is, jobs that run at once. |
 | `CI_STACK_RUNNER_KIND` | `python` | `python` or `upstream` (the real `actions/runner`, Linux x64). |
 | `CI_STACK_RUNNER_LABELS` | `self-hosted,linux,ubuntu-latest,ubuntu-<VERSION_ID>` on an Ubuntu host, for example `ubuntu-26.04` on 26.04. On any other OS the last label is `ubuntu-24.04` | Labels the runners serve. The default reads `ID` and `VERSION_ID` from `/etc/os-release`. |
@@ -176,5 +178,6 @@ scripts/ci-seed-mint-apps.py token http://127.0.0.1:8000 "$TOKEN" my-org e2e
 | `a stack is already running in /tmp/ci-stack (emulator pid 995); run 'scripts/ci-stack.sh stop' first` | A stack started from this `CI_STACK_DIR` is still running. | Run `scripts/ci-stack.sh stop`, or use another `CI_STACK_DIR` and `CI_STACK_PORT`. |
 | `http://127.0.0.1:8000 already answers; another server holds port 8000` | Another server holds the port, for example a stack from another `CI_STACK_DIR`. | Stop that server, or set another `CI_STACK_PORT`. |
 | `CI_STACK_HOST must be a lower-case host name or IPv4 address, got 'Bad_Host'` | `CI_STACK_HOST` has upper-case letters, underscores, a scheme or a port. | Set a bare lower-case name or IPv4 address, for example `ghemu.localhost`. |
-| `the emulator did not start; last lines of /tmp/ci-stack/emulator.log:` | The emulator exited or did not answer within about 30 seconds. The log lines follow. | Read the log lines. A missing module means `CI_STACK_PYTHON` lacks the locked dependencies (step 1). |
+| `the emulator did not start: it exited after 2.4s; last lines of /tmp/ci-stack/emulator.log:` | The emulator process exited before it answered. The log lines follow. | Read the log lines. A missing module means `CI_STACK_PYTHON` lacks the locked dependencies (step 1). |
+| `the emulator did not start: no answer after 120.3s (CI_STACK_START_TIMEOUT=120); last lines of /tmp/ci-stack/emulator.log:` | The emulator was still starting when `CI_STACK_START_TIMEOUT` ran out. The log lines follow. | Each `Startup:` line in the log gives the time of one startup phase (app import, database init, admin user seed, SSH server). If the log stops before `GitHub Emulator started`, the machine may be busy; raise `CI_STACK_START_TIMEOUT`. |
 | `FAIL: run concluded ...` from `scripts/ci-workflow-smoke.sh` | The workflow run did not succeed. | Read `$CI_STACK_DIR/runner-<n>.log` and the job lines the script printed above it. |
