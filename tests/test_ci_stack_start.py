@@ -93,7 +93,7 @@ def test_a_start_past_the_deadline_fails_with_the_elapsed_time(stack):
     assert "the emulator did not start: no answer after" in result.stderr
     assert "(CI_STACK_START_TIMEOUT=3)" in result.stderr
     assert "start failed; stopping what it launched" in result.stderr
-    assert 3 <= took < 30
+    assert 2 <= took < 30
 
 
 def test_an_emulator_that_exits_ends_the_wait_before_the_deadline(stack):

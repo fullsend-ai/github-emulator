@@ -96,7 +96,7 @@ async def test_startup_logs_how_long_each_phase_took(tmp_path, monkeypatch, capl
 
     lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Startup: ")]
     phases = ["database init (migrations)", "admin user seed", "SSH server"]
-    expected = []
+    expected = ["Startup: app import done in"]
     for phase in phases:
         expected += [f"Startup: {phase}...", f"Startup: {phase} done in"]
     assert len(lines) == len(expected), lines

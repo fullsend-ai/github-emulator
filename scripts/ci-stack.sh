@@ -206,7 +206,7 @@ stop_after_failed_start() {
 # follows the locale), else whole seconds from date.
 now_ms() {
   if [ -n "${EPOCHREALTIME:-}" ]; then
-    local t="${EPOCHREALTIME/[.,]/}"
+    local t="${EPOCHREALTIME//[^0-9]/}"
     echo $((10#$t / 1000))
   else
     echo $(($(date +%s) * 1000))
@@ -415,6 +415,8 @@ start() {
     sleep 0.5
   done
   waited=$(($(now_ms) - started))
+  # A clock stepped back must not print a negative time.
+  if [ "$waited" -lt 0 ]; then waited=0; fi
   waited="$((waited / 1000)).$((waited % 1000 / 100))"
   if [ "$ready" != 1 ] || ! live_pid "$DIR/emulator.pid"; then
     if live_pid "$DIR/emulator.pid"; then

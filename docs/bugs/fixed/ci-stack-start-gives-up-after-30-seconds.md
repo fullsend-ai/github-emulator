@@ -17,12 +17,13 @@ Status: fixed 2026-11-21 (issue #107).
 - The loop waits until a deadline, `CI_STACK_START_TIMEOUT` seconds (default
   120), measured to the millisecond (`EPOCHREALTIME`, else `date +%s`). It
   still stops as soon as the emulator process exits.
-- `start` prints `emulator ready after N.Ns`. A failure says either
-  `no answer after N.Ns (CI_STACK_START_TIMEOUT=...)` or `it exited after N.Ns`,
-  after the existing `the emulator did not start` prefix.
+- `start` prints `emulator ready after N.Ns`. On failure, `the emulator did not start:` is followed by either
+  `no answer after N.Ns (CI_STACK_START_TIMEOUT=...)` or `it exited after N.Ns`.
 - `lifespan` in `src/app/main.py` logs a timestamped `Startup: <phase>...`
   line, then `Startup: <phase> done in N.NNs`, for each phase: database init
-  (migrations), the admin user seed and the SSH server.
+  (migrations), the admin user seed and the SSH server. Before those, it
+  logs `Startup: app import done in N.NNs`, the time to import the app. On a
+  busy CI VM that import was most of a slow start.
 - The script header and `docs/guides/ci.md` describe the new variable.
 
 ## Evidence
