@@ -206,7 +206,11 @@ make_tls() {
   if [[ "$HOST" =~ ^[0-9.]+$ ]]; then san="IP:$HOST"; else san="DNS:$HOST"; fi
   san="$san,DNS:localhost,IP:127.0.0.1"
   if [ "$RAW_HOST" = 1 ]; then san="$san,DNS:$RAW_NAME"; fi
+  # Python 3.13+ (VERIFY_X509_STRICT) rejects a CA without key usage.
   openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=ci-stack CA" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign" \
+    -addext "subjectKeyIdentifier=hash" \
     -keyout "$t/ca-key.pem" -out "$CA" 2>/dev/null
   openssl req -newkey rsa:2048 -nodes -subj "/CN=$HOST" \
     -keyout "$t/server-key.pem" -out "$t/server.csr" 2>/dev/null

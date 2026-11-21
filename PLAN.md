@@ -191,6 +191,7 @@ Actions visibility and runner evaluation.
 - `docs/bugs/fixed/runner-drops-a-job-handed-out-while-its-worker-exits.md`
 - `docs/bugs/fixed/dependabot-proposes-interim-ubuntu-for-runner-images.md`
 - `docs/bugs/fixed/runner-end-report-of-a-deleted-job-answers-500.md`
+- `docs/bugs/fixed/ci-stack-tls-ca-rejected-by-python-3-13.md`
 
 ## Decisions
 
