@@ -34,7 +34,7 @@ jobs:
             dockerfile: Dockerfile.k3s
             image: ghcr.io/${{ github.repository }}-k3s
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/')
         run: python3 scripts/release_version.py "$GITHUB_REF_NAME"
